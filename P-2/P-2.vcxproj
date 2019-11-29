@@ -81,10 +81,10 @@
       <SubSystem>Console</SubSystem>
     </Link>
     <PreBuildEvent>
-      <Command>copy "$(ProjectDir)\..\Crypt_lab1\vigenere.txt" "$(ProjectDir)"
-copy "$(ProjectDir)\..\Crypt_lab1\affine.txt" "$(ProjectDir)"
-copy "$(ProjectDir)\..\Crypt_lab1\alphabet.txt" "$(ProjectDir)"
-copy "$(ProjectDir)\..\Crypt_lab1\frequencies.txt" "$(ProjectDir)"</Command>
+      <Command>copy "$(ProjectDir)\..\vigenere.txt" "$(ProjectDir)"
+copy "$(ProjectDir)\..\affine.txt" "$(ProjectDir)"
+copy "$(ProjectDir)\..\alphabet.txt" "$(ProjectDir)"
+copy "$(ProjectDir)\..\frequencies.txt" "$(ProjectDir)"</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">

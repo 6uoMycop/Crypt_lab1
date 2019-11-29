@@ -131,7 +131,7 @@ void vigenereEncrypt(uint8_t** pCypherText, uint8_t* pPlainText, int iLenPlain, 
         (*pCypherText)[i] = pAlphabet[indRez];
     }
 
-    FILE* V = fopen("vigenere.txt", "w");
+    FILE* V = fopen("vigenere.txt", "wb");
     fwrite(*pCypherText, 1, iLenPlain, V);
     fclose(V);
 }
@@ -175,16 +175,26 @@ void initAffine(uint8_t* a, uint8_t* b, int m)
     free(group);
 }
 
+int findIndexOfSymbol(uint8_t symbol, uint8_t* pAlphabet, int iNumLetters)
+{
+    for (int i = 0; i < iNumLetters; i++)
+    {
+        if (pAlphabet[i] == symbol)
+        {
+            return i;
+        }
+    }
+}
 void affineEncrypt(uint8_t** pCypherText, uint8_t* pPlainText, int iLenPlain, uint8_t* pAlphabet, uint8_t a, uint8_t b, int m)
 {
     *pCypherText = (uint8_t*)malloc(iLenPlain * sizeof(uint8_t));
 
     for (int i = 0; i < iLenPlain; i++)
     {
-        (*pCypherText)[i] = pAlphabet[(a * i + b) % m];
+        (*pCypherText)[i] = pAlphabet[((a * findIndexOfSymbol(pPlainText[i], pAlphabet, m) + b) % m)];
     }
 
-    FILE* A = fopen("affine.txt", "w");
+    FILE* A = fopen("affine.txt", "wb");
     fwrite(*pCypherText, 1, iLenPlain, A);
     fclose(A);
 }
