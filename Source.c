@@ -9,6 +9,7 @@
 
 #define KEY_LEN  4
 #define KEY_SEED 2,10,7,13
+//#define KEY_SEED 1,2,3,4
 
 int readFile(uint8_t** pBuf, const char* pFileName)
 {
