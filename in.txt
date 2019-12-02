@@ -1,4 +1,1 @@
-WHEN Tom awoke in the morning, he wondered where he was.
-He sat up and rubbed his eyes and looked around.
-Then he comprehended.
-It was the cool gray dawn, and there was a delicious sense of repose and peace in the deep pervading calm.
+small test text to check if all works

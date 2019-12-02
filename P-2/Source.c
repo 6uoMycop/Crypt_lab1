@@ -7,7 +7,7 @@
 #include <string.h>
 #include <conio.h> 
 
-#define PRINT_CONST 30
+#define PRINT_CONST 60
 #define MAX_KEY_LEN 10
 
 int comp(const uint8_t* a, const uint8_t* b)
@@ -18,6 +18,11 @@ int comp(const uint8_t* a, const uint8_t* b)
 int compInt(const int* a, const int* b)
 {
     return *b - *a;
+}
+
+int compIntLowToHigh(const int* a, const int* b)
+{
+    return *a - *b;
 }
 
 int compFloat(const void* a, const void* b)
@@ -363,13 +368,74 @@ void NextSet(int* a, int n)
     }
 }
 
+int GCD(int a, int b, int* x, int* y)
+{
+    if (a == 0)
+    {
+        *x = 0;
+        *y = 1;
+        return b;
+    }
+    int x1, y1;
+    int d = GCD(b % a, a, &x1, &y1);
+    *x = y1 - (b / a) * x1;
+    *y = x1;
+    return d;
+}
+
+int inverse(int a, int m)
+{
+    int x, y;
+    int g = GCD(a, m, &x, &y);
+    if (g != 1)
+    {
+        return -1;
+    }
+    return (x % m + m) % m;
+}
+
+void affineDecrypt(uint8_t* pCypherText, int iLen, uint8_t* pAlphabet, int iNumLetters, uint8_t** pDecryptedText, int a, int b)
+{
+    int invA = inverse(a, iNumLetters);
+    if (invA == -1)
+    {
+        return -1;
+    }
+
+    *pDecryptedText = (uint8_t*)calloc(iLen, 1);
+    uint8_t* pSortedAphabetByOrder = NULL;
+    pSortedAphabetByOrder = (uint8_t*)malloc(iNumLetters);
+    memcpy(pSortedAphabetByOrder, pAlphabet, iNumLetters);
+    qsort(pSortedAphabetByOrder, iNumLetters, 1, comp);
+
+    int index = 0;
+    for (int i = 0; i < iLen; i++)
+    {
+        index = (findIndexOfSymbol(pCypherText[i], pSortedAphabetByOrder, iNumLetters) - b) * invA;
+        while (index < 0)
+        {
+            index += iNumLetters;
+        }
+        index %= iNumLetters;
+        (*pDecryptedText)[i] = pSortedAphabetByOrder[index];
+    }
+    free(pSortedAphabetByOrder);
+}
+
 void freqAnalysis(uint8_t* pCypherText, int iLen, uint8_t* pAlphabet, int iNumLetters, int* pQuantities)
 {
-    uint8_t* pCypherAlphabet = NULL;
-    int* pQuantCypherLetters = NULL;
-    int numCypherLetters = 0;
-    uint8_t* pPlainText = NULL;
-    uint8_t* pTmpChangeLetters = NULL;
+    uint8_t* pCypherAlphabet =    NULL;
+    int* pQuantCypherLetters =    NULL;
+    int numCypherLetters =        0;
+    uint8_t* pDecryptedAlphabet = NULL;
+    int* pDecryptedQuantities =   NULL;
+    int numDecryptedLetters =     0;
+    uint8_t* pPlainText =         NULL; // substituted by frequency
+    uint8_t* pTmpChangeLetters =  NULL;
+    uint8_t* pDecryptedText =     NULL; // decrypted by key gained using equation solvation
+    int* pA =                     NULL;
+    int* pB =                     NULL;
+    int numOfKeys =               0;
 
     struct freqSet
     {
@@ -385,6 +451,8 @@ void freqAnalysis(uint8_t* pCypherText, int iLen, uint8_t* pAlphabet, int iNumLe
 
     pPlainText = (uint8_t*)malloc(iLen);
     pTmpChangeLetters = (uint8_t*)malloc(iNumLetters);
+    pA = (int*)malloc(iNumLetters * iNumLetters * sizeof(int));
+    pB = (int*)malloc(iNumLetters * iNumLetters * sizeof(int));
 
     calculateAlphabet(pCypherText, iLen, &pCypherAlphabet, &numCypherLetters, &pQuantCypherLetters);
 
@@ -425,15 +493,10 @@ void freqAnalysis(uint8_t* pCypherText, int iLen, uint8_t* pAlphabet, int iNumLe
         }
     }
 
-
-
     // match frequencies
     char userInput[32] = { '\0' };
     //int* changeIndexes = NULL;
     int tmpIndex = 0;
-
-    
-
 
     //changeIndexes = (int*)calloc(allSize, sizeof(int));
     int changeIndex = -1;
@@ -441,17 +504,12 @@ void freqAnalysis(uint8_t* pCypherText, int iLen, uint8_t* pAlphabet, int iNumLe
     while (1)
     {
         memset(pTmpChangeLetters, 0, iNumLetters);
+        memset(pA,                0, iNumLetters * iNumLetters * sizeof(int));
+        memset(pB,                0, iNumLetters * iNumLetters * sizeof(int));
+        numOfKeys = 0;
 
-        for (int i = 0; i < allSize; i++)
-        {
-            printf((sets[i].size == 1) ? ("") : ((changeIndex == i) ? "[%3i] ": "%5i "), i);
-        }
-        printf("\n");
-        for (int i = 0; i < allSize; i++)
-        {
-            printf((sets[i].size == 1) ? ("") : ("%5i "), sets[i].size);
-        }
-        printf("\n");
+        system("cls");
+
 
 
         ind = 0;
@@ -472,20 +530,110 @@ void freqAnalysis(uint8_t* pCypherText, int iLen, uint8_t* pAlphabet, int iNumLe
         }
 
 
-        for (int i = 0; i < iLen && i < 100; i++)
+        printf("\nSubstitution by frequency\n");
+        for (int i = 0; i < PRINT_CONST && i < iLen; i++)
         {
             pPlainText[i] = pTmpChangeLetters[findIndexOfSymbol(pCypherText[i], pCypherAlphabet, iNumLetters)];
             printf("%c", pPlainText[i]);
         }
+        printf("\n . . .\n\n");
 
-        // change letters
-        //for (int i = 0; i < iLen; i++)
-        //{
-        //    pPlainText[i] = pAlphabet[findIndexOfSymbol(pCypherText[i], pTmpChangeLetters, iNumLetters)];
-        //}
+        free(pDecryptedAlphabet);
+        free(pDecryptedQuantities);
+        pDecryptedAlphabet = NULL;
+        pDecryptedQuantities = NULL;
+        numDecryptedLetters = 0;
+        calculateAlphabet(pPlainText, iLen, &pDecryptedAlphabet, &numDecryptedLetters, &pDecryptedQuantities);
 
-        
-        printf("\n . . .\n\nContinue? (Esc - no / Enter - print decrypted text to file / ={Number from 0 to %i} - rotate position / Else - continue rotating the same position)\n> ", allSize);
+        // equation solve
+        // ã
+        // | y1 = x1*a+b mod m   |=>   dy = dx*a mod m   |=>   a = dy*(dx)^-1 mod m
+        // | y2 = x2*a+b mod m   |
+        // L
+        // 
+        for (int i = 0; i < iNumLetters; i++)
+        {
+            int x1 = findIndexOfSymbol(pDecryptedAlphabet[i], pAlphabet, iNumLetters);
+            int y1 = findIndexOfSymbol(pCypherAlphabet[i],    pAlphabet, iNumLetters);
+            for (int j = i + 1; j < iNumLetters; j++)
+            {
+                int x2 = findIndexOfSymbol(pDecryptedAlphabet[j], pAlphabet, iNumLetters);
+                int y2 = findIndexOfSymbol(pCypherAlphabet[j],    pAlphabet, iNumLetters);
+
+                int dx = (x1 - x2 + iNumLetters) % iNumLetters;
+                int dy = (y1 - y2 + iNumLetters) % iNumLetters;
+
+                int invX = inverse(dx, iNumLetters);
+                if (invX == -1)
+                {
+                    continue;
+                }
+
+                int a = (dy * invX) % iNumLetters;
+                if (inverse(a, iNumLetters) == -1)
+                {
+                    continue;
+                }
+
+                int b1 = (y1 - x1 * a) % iNumLetters;
+                int b2 = (y2 - x2 * a) % iNumLetters;
+                while (b1 < 0)
+                {
+                    b1 += iNumLetters;
+                }
+                while (b2 < 0)
+                {
+                    b2 += iNumLetters;
+                }
+                b1 %= iNumLetters;
+                b2 %= iNumLetters;
+                if (b1 != b2)
+                {
+                    continue;
+                }
+
+                for (int k = 0; k < numOfKeys; k++)
+                {
+                    if (pA[k] == a && pB[k] == b1)
+                    {
+                        goto nextIter;
+                    }
+                }
+
+                pA[numOfKeys] = a;
+                pB[numOfKeys] = b1;
+                numOfKeys++;
+
+                //if (a == 41 && b1 == 52)
+                //{
+                    printf("Key number: %4i.\tSupposed key: a = %4i, b = %4i\n", numOfKeys - 1, a, b1);
+
+                    affineDecrypt(pCypherText, iLen, pAlphabet, iNumLetters, &pDecryptedText, a, b1);
+                    printf("Decrypted text:\n");
+                    for (int k = 0; k < PRINT_CONST && k < iLen; k++)
+                    {
+                        printf("%c", pDecryptedText[k]);
+                    }
+                    printf("\n\n");
+                //}
+                nextIter:
+                free(pDecryptedText);
+                pDecryptedText = NULL;
+            }
+        }
+
+        for (int i = 0; i < allSize; i++)
+        {
+            printf((sets[i].size == 1) ? ("") : ((changeIndex == i) ? "[%3i] " : "%5i "), i);
+        }
+        printf("\n");
+        for (int i = 0; i < allSize; i++)
+        {
+            printf((sets[i].size == 1) ? ("") : ("%5i "), sets[i].size);
+        }
+        printf("\n");
+
+        printf("\n\nContinue? (Esc - no / Enter, then number of key - print decrypted by key[number] text to file / ={Number from 0 to %i} - rotate position / Else - continue rotating the same position)\n> ", allSize);
         userInput[0] = _getch();
         if (userInput[0] == 27)
         {
@@ -493,10 +641,15 @@ void freqAnalysis(uint8_t* pCypherText, int iLen, uint8_t* pAlphabet, int iNumLe
         }
         else if (userInput[0] == 13)
         {
+            scanf("%s", &userInput[1]);
+            tmpIndex = atoi(&userInput[1]);
+            affineDecrypt(pCypherText, iLen, pAlphabet, iNumLetters, &pDecryptedText, pA[tmpIndex], pB[tmpIndex]);
             FILE* outF = fopen("freqAnalysisRes.txt", "wb");
             fwrite(pPlainText, 1, iLen, outF);
             fclose(outF);
             changeIndex = -1;
+            free(pDecryptedText);
+            pDecryptedText = NULL;
         }
         else if (userInput[0] == 61)
         {
@@ -512,28 +665,25 @@ void freqAnalysis(uint8_t* pCypherText, int iLen, uint8_t* pAlphabet, int iNumLe
         }
     }
 
-    // equation solve
-    for (int i = 0; i < iNumLetters; i++)
-    {
-        for (int j = 0; j < iNumLetters; j++)
-        {
-
-        }
-    }
 
 
 
     cleanup:
     free(pCypherAlphabet);
     free(pQuantCypherLetters);
+    free(pDecryptedAlphabet);
+    free(pDecryptedQuantities);
     free(pPlainText);
     free(tmpPtr);
     free(pTmpChangeLetters);
+    free(pDecryptedText);
     for (int i = 0; i < allSize; i++)
     {
         free(sets[i].permutation);
     }
     free(sets);
+    free(pA);
+    free(pB);
 }
 
 float findMIc(uint8_t* pPart1, int iPartNum1, uint8_t* pPart2, int iPartNum2, uint8_t* pAlphabet, int iNumLetters, int* pQuantities)
@@ -800,21 +950,21 @@ void insertNGram(struct nGram** pNGrams, int *iSizeNGrams, uint8_t* pTmpNGram, i
     //qsort(*pNGrams, *iSizeNGrams, sizeof(struct nGram), compNGrams);
 }
 
-int GCD(int a, int b)
-{
-    while (a > 0 && b > 0)
-    {
-        if (a > b)
-        {
-            a %= b;
-        }
-        else
-        {
-            b %= a;
-        }
-    }
-    return a + b;
-}
+//int GCD(int a, int b)
+//{
+//    while (a > 0 && b > 0)
+//    {
+//        if (a > b)
+//        {
+//            a %= b;
+//        }
+//        else
+//        {
+//            b %= a;
+//        }
+//    }
+//    return a + b;
+//}
 
 void kasiski(uint8_t* pCypherText, int iLen)
 {
@@ -854,7 +1004,7 @@ void kasiski(uint8_t* pCypherText, int iLen)
     // sort positions and delete repetitions
     for (int p = 0; p < sizeNGrams; p++)
     {
-        qsort(pNGrams[p].pPositions, pNGrams[p].iNum, sizeof(int), compInt);
+        qsort(pNGrams[p].pPositions, pNGrams[p].iNum, sizeof(int), compIntLowToHigh);
         int ind = 0;
         for (int i = 1; i < pNGrams[p].iNum + 1; i++)
         {
@@ -873,12 +1023,13 @@ void kasiski(uint8_t* pCypherText, int iLen)
 
     // calculate GCDs
     pGCDs = (int*)malloc((sizeNGrams + 1) * sizeof(int));
+    int unusedX = 0, unusedY = 0;
     for (int n = 0; n < sizeNGrams; n++)
     {
-        pGCDs[n] = GCD(pNGrams[n].pPositions[0], pNGrams[n].pPositions[1]);
+        pGCDs[n] = pNGrams[n].pPositions[1] - pNGrams[n].pPositions[0]; //GCD(pNGrams[n].pPositions[0], pNGrams[n].pPositions[1], &unusedX, &unusedY);
         for (int i = 2; i < pNGrams[n].iNum; i++)
         {
-            pGCDs[n] = GCD(pGCDs[n], pNGrams[n].pPositions[i]);
+            pGCDs[n] = GCD(pGCDs[n], pNGrams[n].pPositions[i] - pNGrams[n].pPositions[0], &unusedX, &unusedY);
         }
     }
 
@@ -890,7 +1041,7 @@ void kasiski(uint8_t* pCypherText, int iLen)
         {
             printf("%c", pNGrams[i].pNGram[j]);
         }
-        printf("\"\nn=%i\nGCD:%i\nNumber of instances: %i\nPositions: ", pNGrams[i].iN, pGCDs[i], pNGrams[i].iNum);
+        printf("\"\nn=%i\nGCD(distances)=%i\nNumber of instances: %i\nPositions: ", pNGrams[i].iN, pGCDs[i], pNGrams[i].iNum);
         for (int j = 0; j < pNGrams[i].iNum; j++)
         {
             printf("%6i ", pNGrams[i].pPositions[j]);
@@ -925,7 +1076,7 @@ void kasiski(uint8_t* pCypherText, int iLen)
     free(pGCDs);
 }
 
-int main()
+int main(int argc, char* argv[])
 {
     uint8_t* pAlphabet      = NULL;
     uint8_t* pCypherTextV   = NULL;
@@ -941,10 +1092,12 @@ int main()
     iLenTextV = readText(&pCypherTextV, "vigenere.txt");
     iLenTextA = readText(&pCypherTextA, "affine.txt");
     
+    //TODO: switch 
+
     //freqAnalysis(pCypherTextA, iLenTextA, pAlphabet, iNumAlphabetLetters, pQuantLetters);
-    //friedman1(pCypherTextV, iLenTextV, pAlphabet, iNumAlphabetLetters, pQuantLetters);
+    friedman1(pCypherTextV, iLenTextV, pAlphabet, iNumAlphabetLetters, pQuantLetters);
     //friedman2(pCypherTextV, iLenTextV, pAlphabet, iNumAlphabetLetters, pQuantLetters);
-    kasiski(pCypherTextV, iLenTextV);
+    //kasiski(pCypherTextV, iLenTextV);
 
 
     free(pAlphabet);
